@@ -26,7 +26,7 @@ fn main() {
             parser.binary.unwrap_or_else(|| "todoer".to_string())
         );
         println!("Matches `BUG:`, `HACK:`, `TODO:`, `FIXME:`, and `XXX:`,");
-        println!("after any common programming comment. Doesn't support multiline.");
+        println!("after any common programming comment. Doesn't support mid-multiline.");
         println!("  -h |   --help : show this text");
         println!("  -i | --ignore : disregard .ignore/.gitignore");
         println!("  -H | --hidden : include hidden files/directories");
@@ -35,7 +35,7 @@ fn main() {
 
     let path = remainder.get(0).map(String::as_str).unwrap_or("./");
 
-    let re = Regex::new("(#|//|;;?|--) *(BUG|HACK|TODO|FIXME|XXX) *:.*").unwrap();
+    let re = Regex::new("(#(\\[?)|//|;|--(\\[?)|/\\*+|\\{-|%(\\{?)|\\(\\*|<!--)+ *(BUG|HACK|TODO|FIXME|XXX) *:.*").unwrap();
     for entry in WalkBuilder::new(path)
         .hidden(!get_flag!(parser, both, 'H', "hidden"))
         .ignore(!get_flag!(parser, both, 'i', "ignore")).build()
