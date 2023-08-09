@@ -1,0 +1,15 @@
+[package]
+name = "todoer"
+version = "1.0.0"
+edition = "2021"
+
+description = "A tiny utility for enumerating todo's in a file tree."
+license = "MIT"
+
+keywords = ["command-line-utilities", "command-line-utility", "todo", "todos"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+ignore = "0.4.20"
+regex = "1.9.3"
+sarge = "3.0.1"
