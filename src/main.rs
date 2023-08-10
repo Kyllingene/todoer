@@ -60,8 +60,10 @@ fn main() {
                     }
 
                     Ok(data) => {
-                        for m in re.find_iter(&data) {
-                            println!(" - {}", m.as_str());
+                        for (li, line) in data.lines().enumerate() {
+                            for m in re.find_iter(line) {
+                                println!(" ({}:{}:{}) {}", entry.file_name().to_string_lossy(), li + 1, m.range().start + 1, m.as_str());
+                            }
                         }
                     }
                 }
