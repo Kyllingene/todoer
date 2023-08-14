@@ -11,6 +11,7 @@ fn main() {
     parser.add(arg!(flag, both, 'h', "help"));
     parser.add(arg!(flag, both, 'i', "ignore"));
     parser.add(arg!(flag, both, 'H', "hidden"));
+    parser.add(arg!(flag, both, 's', "short"));
 
     let remainder = match parser.parse() {
         Ok(r) => r,
@@ -30,11 +31,13 @@ fn main() {
         println!("  -h |   --help : show this text");
         println!("  -i | --ignore : disregard .ignore/.gitignore");
         println!("  -H | --hidden : include hidden files/directories");
+        println!("  -s |  --short : only print filenames, not paths");
         exit(0);
     }
 
     let path = remainder.get(0).map(String::as_str).unwrap_or("./");
 
+	let short = get_flag!(parser, both, 's', "short");
     let re = Regex::new("(#(\\[?)|//|;|--(\\[?)|/\\*+|\\{-|%(\\{?)|\\(\\*|<!--)+ *(BUG|HACK|TODO|FIXME|XXX) *:.*").unwrap();
     for entry in WalkBuilder::new(path)
         .hidden(!get_flag!(parser, both, 'H', "hidden"))
@@ -62,7 +65,12 @@ fn main() {
                     Ok(data) => {
                         for (li, line) in data.lines().enumerate() {
                             for m in re.find_iter(line) {
-                                println!(" ({}:{}:{}) {}", entry.file_name().to_string_lossy(), li + 1, m.range().start + 1, m.as_str());
+                            	let name = if short {
+                            		entry.file_name().to_string_lossy()
+                            	} else {
+                            		entry.path().to_string_lossy()
+                            	};
+                                println!(" ({}:{}:{}) {}", name, li + 1, m.range().start + 1, m.as_str());
                             }
                         }
                     }
