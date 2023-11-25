@@ -6,13 +6,17 @@ use sarge::prelude::*;
 
 // TODO: add color
 
+sarge! {
+    Args,
+
+    'h' help: bool,
+    'i' ignore: bool,
+    'H' hidden: bool,
+    's' short: bool,
+}
+
 fn main() {
-    let mut parser = ArgumentParser::new();
-    parser.add(arg!(flag, both, 'h', "help"));
-    parser.add(arg!(flag, both, 'i', "ignore"));
-    parser.add(arg!(flag, both, 'H', "hidden"));
-    parser.add(arg!(flag, both, 's', "short"));
-    let remainder = match parser.parse() {
+    let (args, remainder) = match Args::parse() {
         Ok(r) => r,
         Err(e) => {
             eprintln!("error (failed to parse arguments): {e}");
@@ -20,11 +24,8 @@ fn main() {
         }
     };
 
-    if get_flag!(parser, both, 'h', "help") || remainder.len() > 1 {
-        println!(
-            "{} [options] [path]: Print all todo's found in a file tree",
-            parser.binary.unwrap_or_else(|| "todoer".to_string())
-        );
+    if args.help || remainder.len() > 1 {
+        println!("todoer [options] [path]: Print all todo's found in a file tree");
         println!("Matches `BUG:`, `HACK:`, `TODO:`, `FIXME:`, and `XXX:`,");
         println!("after any common programming comment. Doesn't support mid-multiline.");
         println!("  -h |   --help : show this text");
@@ -36,14 +37,13 @@ fn main() {
 
     let path = remainder.get(0).map(String::as_str).unwrap_or("./");
 
-    let short = get_flag!(parser, both, 's', "short");
     let re = Regex::new(
         "(#(\\[?)|//|;|--(\\[?)|/\\*+|\\{-|%(\\{?)|\\(\\*|<!--)+ *(BUG|HACK|TODO|FIXME|XXX) *:.*",
     )
     .unwrap();
     for entry in WalkBuilder::new(path)
-        .hidden(!get_flag!(parser, both, 'H', "hidden"))
-        .ignore(!get_flag!(parser, both, 'i', "ignore"))
+        .hidden(!args.hidden)
+        .ignore(!args.ignore)
         .build()
     {
         match entry {
@@ -71,7 +71,7 @@ fn main() {
                     Ok(data) => {
                         for (li, line) in data.lines().enumerate() {
                             for m in re.find_iter(line) {
-                                let name = if short {
+                                let name = if args.short {
                                     entry.file_name().to_string_lossy()
                                 } else {
                                     entry.path().to_string_lossy()
