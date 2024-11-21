@@ -82,7 +82,7 @@ fn main() {
 
                 // only stringify the name once, and only if any results are
                 // actually printed for that file
-                let name = LazyCell::new(|| entry.path().to_string_lossy());
+                let name = LazyCell::new(|| entry.file_name().to_string_lossy());
 
                 match std::fs::read_to_string(entry.path()) {
                     Err(e) => {
@@ -96,7 +96,7 @@ fn main() {
                             for m in re.find_iter(line) {
                                 if let Some(parent) = entry.path().parent() {
                                     let parent_hash = get_hash(parent);
-                                    if !last_parent == parent_hash {
+                                    if last_parent != parent_hash {
                                         last_parent = parent_hash;
                                         println!("{PATH_STYLE}{}:", parent.display());
                                     }
