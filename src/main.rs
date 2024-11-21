@@ -1,10 +1,19 @@
-use std::{process::exit, io::ErrorKind};
+use std::cell::LazyCell;
+use std::io::ErrorKind;
+use std::process::exit;
 
+use const_format::formatcp;
 use ignore::WalkBuilder;
 use regex::Regex;
 use sarge::prelude::*;
 
-// TODO: add color
+mod helpers;
+use helpers::get_hash;
+
+const FILE_STYLE: &str = "\x1b[38;5;12m";
+const PATH_STYLE: &str = "\x1b[38;5;8m";
+const ERROR_STYLE: &str = "\x1b[38;5;1m";
+const DESTYLE: &str = "\x1b[0m";
 
 sarge! {
     Args,
@@ -12,35 +21,46 @@ sarge! {
     'h' help: bool,
     'i' ignore: bool,
     'H' hidden: bool,
-    's' short: bool,
+    #ok 'e' exclude: Vec<String>,
 }
 
 fn main() {
-    let (args, remainder) = match Args::parse() {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("error (failed to parse arguments): {e}");
-            exit(1);
-        }
-    };
+    let (args, remainder) = Args::parse().unwrap_or_else(|e| {
+        eprintln!("Failed to parse arguments): {e}{DESTYLE}");
+        exit(1);
+    });
 
     if args.help || remainder.len() > 1 {
         println!("todoer [options] [path]: Print all todo's found in a file tree");
-        println!("Matches `BUG:`, `HACK:`, `TODO:`, `FIXME:`, and `XXX:`,");
+        println!("Matches `BUG`, `HACK`, `TODO`, `FIXME`, and `XXX`,");
         println!("after any common programming comment. Doesn't support mid-multiline.");
         println!("  -h |   --help : show this text");
         println!("  -i | --ignore : disregard .ignore/.gitignore");
         println!("  -H | --hidden : include hidden files/directories");
-        println!("  -s |  --short : only print filenames, not paths");
-        exit(0);
+        return;
     }
 
-    let path = remainder.get(0).map(String::as_str).unwrap_or("./");
+    let path = remainder.first().map_or("./", String::as_str);
 
-    let re = Regex::new(
-        "(#(\\[?)|//|;|--(\\[?)|/\\*+|\\{-|%(\\{?)|\\(\\*|<!--)+ *(BUG|HACK|TODO|FIXME|XXX) *:.*",
-    )
-    .unwrap();
+    let re = {
+        const COMMENT: &str = join!(
+            "|", "#(\\[?)", // # OR #[
+            "//", ";", "--(\\[?)", // -- OR --[
+            "/\\*+",    // /* OR /** (etc.)
+            "\\{-",     // {-
+            "%(\\{?)",  // % OR %{
+            "\\(\\*",   // (*
+            "<!--",
+        );
+
+        const SPEC: &str = "BUG|HACK|TODO|FIXME|XXX";
+
+        formatcp!("({COMMENT})+ *({SPEC}).*")
+    };
+    let re = Regex::new(re).unwrap();
+
+    let mut last_parent = 0;
+
     for entry in WalkBuilder::new(path)
         .hidden(!args.hidden)
         .ignore(!args.ignore)
@@ -48,37 +68,43 @@ fn main() {
     {
         match entry {
             Err(e) => {
-                eprintln!("error (while walking directory): {e}");
+                eprintln!("{ERROR_STYLE}Error (while walking directory): {e}{DESTYLE}");
             }
 
             Ok(entry) => {
                 if let Some(e) = entry.error() {
-                    eprintln!("error (failed to parse ignore): {e}");
+                    eprintln!("{ERROR_STYLE}Error (while handling entry): {e}{DESTYLE}");
                 }
 
                 if entry.path().is_dir() {
                     continue;
                 }
 
+                // only stringify the name once, and only if any results are
+                // actually printed for that file
+                let name = LazyCell::new(|| entry.path().to_string_lossy());
+
                 match std::fs::read_to_string(entry.path()) {
                     Err(e) => {
-                        match e.kind() {
-                            ErrorKind::InvalidData => {},
-                            _ => eprintln!("error (failed to read file): {e}"),
+                        if !matches!(e.kind(), ErrorKind::InvalidData) {
+                            eprintln!("{ERROR_STYLE}Error (failed to read file): {e}{DESTYLE}");
                         }
                     }
 
                     Ok(data) => {
                         for (li, line) in data.lines().enumerate() {
                             for m in re.find_iter(line) {
-                                let name = if args.short {
-                                    entry.file_name().to_string_lossy()
-                                } else {
-                                    entry.path().to_string_lossy()
-                                };
+                                if let Some(parent) = entry.path().parent() {
+                                    let parent_hash = get_hash(parent);
+                                    if !last_parent == parent_hash {
+                                        last_parent = parent_hash;
+                                        println!("{PATH_STYLE}{}:", parent.display());
+                                    }
+                                }
+
                                 println!(
-                                    " ({}:{}:{}) {}",
-                                    name,
+                                    "  ({FILE_STYLE}{}:{}:{}{DESTYLE})    \t{}",
+                                    &*name,
                                     li + 1,
                                     m.range().start + 1,
                                     m.as_str()
