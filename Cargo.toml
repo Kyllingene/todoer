@@ -10,7 +10,7 @@ keywords = ["command-line-utilities", "command-line-utility", "todo", "todos"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
-const_format = "0.2.33"
+const_format = "0.2"
 ignore = "0.4"
-regex = "1.9"
-sarge = "6.0"
+regex = "1.11"
+sarge = "7.2"

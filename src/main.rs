@@ -30,7 +30,7 @@ fn main() {
         exit(1);
     });
 
-    if args.help || remainder.len() > 1 {
+    if args.help || remainder.len() > 2 {
         println!("todoer [options] [path]: Print all todo's found in a file tree");
         println!("Matches `BUG`, `HACK`, `TODO`, `FIXME`, and `XXX`,");
         println!("after any common programming comment. Doesn't support mid-multiline.");
@@ -40,7 +40,7 @@ fn main() {
         return;
     }
 
-    let path = remainder.first().map_or("./", String::as_str);
+    let path = remainder.get(1).map_or("./", String::as_str);
 
     let re = {
         const COMMENT: &str = join!(
@@ -98,7 +98,7 @@ fn main() {
                                     let parent_hash = get_hash(parent);
                                     if last_parent != parent_hash {
                                         last_parent = parent_hash;
-                                        println!("{PATH_STYLE}{}:", parent.display());
+                                        println!("{PATH_STYLE}{}{DESTYLE}:", parent.display());
                                     }
                                 }
 
